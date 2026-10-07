@@ -1,0 +1,14 @@
+{
+  "name": "notify-pages",
+  "version": "0.1.0",
+  "description": "Public event pages with permissioned publishing and per-subscriber Web Push.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "license": "MIT"
+}
