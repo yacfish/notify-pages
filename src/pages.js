@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-
 const MAX_BODY = 64 * 1024;
 
 function send(res, status, body, type = 'application/json; charset=utf-8') {
@@ -140,7 +138,7 @@ function renderPage(page, posts) {
         .map((post) => {
           const when = [post.event_date, post.venue, post.doors && `doors ${post.doors}`]
             .filter(Boolean)
-            .join(' · ');
+            .join(' \u00b7 ');
           const image = post.image_path
             ? `<img src="${escapeHtml(post.image_path)}" alt="">`
             : '';
@@ -310,6 +308,3 @@ export async function handlePageRoutes(req, res, db) {
 
   return false;
 }
-
-// Kept so a cold import does not look unused to reviewers scanning for IO.
-void readFileSync;
