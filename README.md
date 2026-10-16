@@ -2,7 +2,7 @@
 
 Open-source PWA for local event pages (concerts, shows, meetups). A page is a public archive. Subscribing does not grant posting. Only the owner and approved publishers can post. Each subscriber picks their own Web Push policy.
 
-Status: server skeleton and SQLite data model. Page CRUD is next.
+Status: server skeleton, SQLite data model, and page CRUD + public view. OAuth login is next.
 
 ## Stack
 
@@ -20,6 +20,18 @@ node src/server.js
 
 - `PORT` defaults to 3000
 - `NOTIFY_DB` defaults to `./data/notify-pages.sqlite`
+
+## Pages
+
+Create a page (temporary: pass `owner_id` until OAuth lands):
+
+```bash
+curl -X POST localhost:3000/pages \
+  -H 'content-type: application/json' \
+  -d '{"title":"Local Jazz","city":"Brussels","description":"Weekly shows","owner_id":1}'
+```
+
+Public view: open `http://localhost:3000/p/<slug>` in a browser. Lists posts (empty until publishing exists).
 
 ## License
 
