@@ -41,10 +41,27 @@ function slugify(input) {
     .slice(0, 60);
 }
 
+// Temporary until OAuth. Creates a demo user so page create works without login.
+function getOrCreateDemoOwner() {
+  let user = db.prepare("SELECT id FROM users WHERE provider = 'dev' AND provider_sub = 'demo'").get();
+  if (!user) {
+    const info = db.prepare(
+      "INSERT INTO users (provider, provider_sub, name) VALUES ('dev', 'demo', 'Demo Owner')"
+    ).run();
+    user = { id: info.lastInsertRowid };
+  }
+  return user.id;
+}
+
 const insertPage = db.prepare(
   'INSERT INTO pages (slug, owner_id, title, city, description) VALUES (?, ?, ?, ?, ?)'
 );
 const getPage = db.prepare('SELECT * FROM pages WHERE slug = ?');
+const listPages = db.prepare('SELECT id, slug, title, city, description, created_at FROM pages ORDER BY created_at DESC');
+const updatePage = db.prepare(
+  'UPDATE pages SET title = COALESCE(?, title), city = COALESCE(?, city), description = COALESCE(?, description) WHERE slug = ?'
+);
+const deletePage = db.prepare('DELETE FROM pages WHERE slug = ?');
 const listPosts = db.prepare(
   'SELECT id, body, image_path, event_date, venue, doors, created_at FROM posts WHERE page_id = ? ORDER BY created_at DESC LIMIT 50'
 );
@@ -90,15 +107,22 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && path === '/api/pages') {
+    const pages = listPages.all();
+    json(res, 200, { pages });
+    return;
+  }
+
   if (req.method === 'POST' && path === '/api/pages') {
     try {
       const body = await readBody(req);
       const slug = slugify(body.slug || body.title);
-      if (!slug || !body.title || !body.city || !body.owner_id) {
-        json(res, 400, { error: 'title, city, and owner_id are required; slug is optional' });
+      if (!slug || !body.title || !body.city) {
+        json(res, 400, { error: 'title and city are required; slug is optional' });
         return;
       }
-      const info = insertPage.run(slug, Number(body.owner_id), String(body.title), String(body.city), String(body.description || ''));
+      const ownerId = body.owner_id ? Number(body.owner_id) : getOrCreateDemoOwner();
+      insertPage.run(slug, ownerId, String(body.title), String(body.city), String(body.description || ''));
       const page = getPage.get(slug);
       json(res, 201, { page });
     } catch (err) {
@@ -112,15 +136,46 @@ const server = createServer(async (req, res) => {
   }
 
   const apiMatch = path.match(/^\/api\/pages\/([^/]+)$/);
-  if (req.method === 'GET' && apiMatch) {
-    const page = getPage.get(apiMatch[1]);
-    if (!page) {
-      json(res, 404, { error: 'page not found' });
+  if (apiMatch) {
+    const slug = apiMatch[1];
+    if (req.method === 'GET') {
+      const page = getPage.get(slug);
+      if (!page) {
+        json(res, 404, { error: 'page not found' });
+        return;
+      }
+      const posts = listPosts.all(page.id);
+      json(res, 200, { page, posts });
       return;
     }
-    const posts = listPosts.all(page.id);
-    json(res, 200, { page, posts });
-    return;
+    if (req.method === 'PATCH') {
+      try {
+        const body = await readBody(req);
+        const result = updatePage.run(
+          body.title ? String(body.title) : null,
+          body.city ? String(body.city) : null,
+          body.description !== undefined ? String(body.description) : null,
+          slug
+        );
+        if (result.changes === 0) {
+          json(res, 404, { error: 'page not found' });
+          return;
+        }
+        json(res, 200, { page: getPage.get(slug) });
+      } catch (err) {
+        json(res, 500, { error: 'failed to update page' });
+      }
+      return;
+    }
+    if (req.method === 'DELETE') {
+      const result = deletePage.run(slug);
+      if (result.changes === 0) {
+        json(res, 404, { error: 'page not found' });
+        return;
+      }
+      json(res, 204, {});
+      return;
+    }
   }
 
   const htmlMatch = path.match(/^\/p\/([^/]+)$/);

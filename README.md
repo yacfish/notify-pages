@@ -2,7 +2,7 @@
 
 Open-source PWA for local event pages (concerts, shows, meetups). A page is a public archive. Subscribing does not grant posting. Only the owner and approved publishers can post. Each subscriber picks their own Web Push policy.
 
-Status: page create and public view. OAuth login is next.
+Status: page CRUD and public view. OAuth login is next.
 
 ## Stack
 
@@ -23,17 +23,25 @@ node src/server.js
 
 ## Page API
 
-Create a page (owner_id is temporary until OAuth):
+Create a page (owner_id optional; a demo user is created if omitted):
 
 ```bash
 curl -X POST http://127.0.0.1:3000/api/pages \
   -H 'content-type: application/json' \
-  -d '{"title":"Friday Jazz","city":"Brussels","description":"Weekly","owner_id":1}'
+  -d '{"title":"Friday Jazz","city":"Brussels","description":"Weekly"}'
 ```
+
+List: `GET /api/pages`
 
 Public JSON: `GET /api/pages/:slug`
 
+Update: `PATCH /api/pages/:slug` (JSON body with title/city/description)
+
+Delete: `DELETE /api/pages/:slug`
+
 Public HTML: `GET /p/:slug`
+
+Note: owner checks and real auth come with OAuth. Deletes and updates are currently open.
 
 ## License
 
